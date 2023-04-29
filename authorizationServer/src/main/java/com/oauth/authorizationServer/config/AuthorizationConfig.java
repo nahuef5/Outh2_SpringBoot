@@ -30,7 +30,13 @@ import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
+import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
 
 @Configuration
 @Slf4j
@@ -74,6 +80,23 @@ public class AuthorizationConfig {
                 .build();
         return new InMemoryRegisteredClientRepository(registeredClient);
     }
+    @Bean
+    public OAuth2TokenCustomizer<JwtEncodingContext> tokenCustomizer(){
+        return context ->{
+            Authentication principal = context.getPrincipal();
+            if(context.getTokenType().getValue().equals("id_token")){
+                context.getClaims().claim("tokenType", "id_token");
+            }
+            if(context.getTokenType().getValue().equals("access_token")){
+                context.getClaims().claim("tokenType", "access_token");
+                Set<String> roles=principal.getAuthorities().stream().map(GrantedAuthority::getAuthority)
+                        .collect(Collectors.toSet());
+                context.getClaims().claim("roles", roles);
+            }
+        };
+    }
+    
+    
     @Bean
     public ClientSettings clientSettings(){
         return ClientSettings.builder().requireProofKey(true).build();
