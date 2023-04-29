@@ -3,6 +3,7 @@ import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
+import com.oauth.authorizationServer.service.ClientService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
@@ -33,6 +34,7 @@ import java.security.interfaces.RSAPublicKey;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
@@ -42,7 +44,8 @@ import org.springframework.security.oauth2.server.authorization.token.OAuth2Toke
 @Slf4j
 @RequiredArgsConstructor
 public class AuthorizationConfig {
-    
+    @Autowired
+    ClientService service;
     private final PasswordEncoder passwordEncoder;
     
     @Bean
@@ -59,13 +62,13 @@ public class AuthorizationConfig {
     @Bean
     @Order(2)
     public SecurityFilterChain webSecurityFilterChain(HttpSecurity http) throws Exception {
-        http.authorizeHttpRequests(auth -> auth.requestMatchers("/auth/**")
+        http.authorizeHttpRequests(auth -> auth.requestMatchers("/auth/**", "/client/**")
                 .permitAll().anyRequest().authenticated())
                 .formLogin(Customizer.withDefaults());
-        http.csrf().ignoringRequestMatchers("/auth/**");
+        http.csrf().ignoringRequestMatchers("/auth/**", "/client/**");
         return http.build();
     }
-    @Bean
+    /*@Bean
     public RegisteredClientRepository registeredClientRepository(){
         RegisteredClient registeredClient = RegisteredClient.withId(UUID.randomUUID().toString())
                 .clientId("client")
@@ -79,7 +82,7 @@ public class AuthorizationConfig {
                 .clientSettings(clientSettings())
                 .build();
         return new InMemoryRegisteredClientRepository(registeredClient);
-    }
+    }*///kzkgvux8RjAPvAeJvvzC9BpXieOaM3WwbY52rtYEWRK
     @Bean
     public OAuth2TokenCustomizer<JwtEncodingContext> tokenCustomizer(){
         return context ->{
@@ -97,10 +100,10 @@ public class AuthorizationConfig {
     }
     
     
-    @Bean
+   /* @Bean
     public ClientSettings clientSettings(){
         return ClientSettings.builder().requireProofKey(true).build();
-    }
+    }*/
 
     @Bean
     public AuthorizationServerSettings authorizationServerSettings(){
