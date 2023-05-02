@@ -82,7 +82,7 @@ public class AuthorizationConfig {
                 .clientSettings(clientSettings())
                 .build();
         return new InMemoryRegisteredClientRepository(registeredClient);
-    }*///kzkgvux8RjAPvAeJvvzC9BpXieOaM3WwbY52rtYEWRK
+    }*/
     @Bean
     public OAuth2TokenCustomizer<JwtEncodingContext> tokenCustomizer(){
         return context ->{
