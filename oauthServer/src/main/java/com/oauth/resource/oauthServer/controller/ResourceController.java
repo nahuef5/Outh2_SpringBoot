@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 public class ResourceController {
     
     @GetMapping("/user")
+    @PreAuthorize("hasAnyAuthority('ROLE_USER', 'OIDC_USER')")
     public ResponseEntity<MessageHandler> user (Authentication authentication){
         return ResponseEntity.ok(new MessageHandler("Hi!! "+authentication.getName()));
     }

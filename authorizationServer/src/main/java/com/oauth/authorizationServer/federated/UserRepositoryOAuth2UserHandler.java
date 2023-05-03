@@ -1,30 +1,25 @@
 package com.oauth.authorizationServer.federated;
+import com.oauth.authorizationServer.entity.GmailUser;
+import com.oauth.authorizationServer.repository.GmailUserRepository;
 import org.springframework.security.oauth2.core.user.OAuth2User;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
-
+@RequiredArgsConstructor
+@Slf4j
 public final class UserRepositoryOAuth2UserHandler implements Consumer<OAuth2User> {
-
-    private final UserRepository userRepository = new UserRepository();
-
-    @Override
-    public void accept(OAuth2User user) {
-	// Capture user in a local data store on first authentication
-        if (this.userRepository.findByName(user.getName()) == null) {
-            //Saving first-time user
-            this.userRepository.save(user);
-	}
-    }
+    private final GmailUserRepository gmailUserRepository;
     
-    static class UserRepository {
-	private final Map<String, OAuth2User> userCache = new ConcurrentHashMap<>();
-	public OAuth2User findByName(String name) {
-            return this.userCache.get(name);
+    @Override
+    public void accept(OAuth2User userOAuth) {
+        if (!this.gmailUserRepository.findByEmail(userOAuth.getName()).isPresent()) {
+            GmailUser gUser= GmailUser.fromOAuth2User(userOAuth);
+            log.info(gUser.toString());
+            this.gmailUserRepository.save(gUser);
 	}
-	public void save(OAuth2User oauth2User) {
-            this.userCache.put(oauth2User.getName(), oauth2User);
-	}
+        else {
+            log.info("Welcome {}", userOAuth.getAttributes().get("given_name"));
+        }
     }
 }

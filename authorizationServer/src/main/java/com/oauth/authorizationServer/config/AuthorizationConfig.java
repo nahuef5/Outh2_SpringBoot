@@ -1,8 +1,11 @@
-package com.oauth.authorizationServer.config;import com.nimbusds.jose.jwk.JWKSet;
+package com.oauth.authorizationServer.config;
+import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.JWKSource;
-import com.nimbusds.jose.proc.SecurityContext;import com.oauth.authorizationServer.federated.FederatedIdentityConfigurer;
+import com.nimbusds.jose.proc.SecurityContext;
+import com.oauth.authorizationServer.federated.FederatedIdentityConfigurer;
 import com.oauth.authorizationServer.federated.UserRepositoryOAuth2UserHandler;
+import com.oauth.authorizationServer.repository.GmailUserRepository;
 import com.oauth.authorizationServer.service.ClientService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,17 +38,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 public class AuthorizationConfig {
     @Autowired
     ClientService service;
+    private final GmailUserRepository gmailUserRepo;
     
-    /*@Bean
-    @Order(1)
-    public SecurityFilterChain authSecurityFilterChain(HttpSecurity http) throws Exception {
-        OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
-		http.getConfigurer(OAuth2AuthorizationServerConfigurer.class)
-				.oidc(Customizer.withDefaults());
-		http.oauth2ResourceServer(OAuth2ResourceServerConfigurer::jwt);
-		http.apply(new FederatedIdentityConfigurer());
-		return http.build();
-    }*/
     @Bean
     @Order(1)
     public SecurityFilterChain authSecurityFilterChain(HttpSecurity http) throws Exception {
@@ -60,7 +54,7 @@ public class AuthorizationConfig {
     @Order(2)
     public SecurityFilterChain webSecurityFilterChain(HttpSecurity http) throws Exception {
         FederatedIdentityConfigurer federatedIdentityConfigurer = new FederatedIdentityConfigurer()
-			.oauth2UserHandler(new UserRepositoryOAuth2UserHandler());
+			.oauth2UserHandler(new UserRepositoryOAuth2UserHandler(gmailUserRepo));
 		
         http.authorizeHttpRequests(authorizeRequests ->
 		authorizeRequests
@@ -72,24 +66,6 @@ public class AuthorizationConfig {
         http.csrf().ignoringRequestMatchers("/auth/**", "/client/**");
 	return http.build();
     }
-    /*
-    @Bean
-    @Order(2)
-    public SecurityFilterChain webSecurityFilterChain(HttpSecurity http) throws Exception {
-        FederatedIdentityConfigurer federatedIdentityConfigurer = new FederatedIdentityConfigurer()
-			.oauth2UserHandler(new UserRepositoryOAuth2UserHandler());
-		http
-			.authorizeHttpRequests(authorizeRequests ->
-				authorizeRequests
-					.requestMatchers("/auth/**", "/client/**", "/login").permitAll()
-					.anyRequest().authenticated()
-			)
-			.formLogin(Customizer.withDefaults())
-			.apply(federatedIdentityConfigurer);
-                http.csrf().ignoringRequestMatchers("/auth/**", "/client/**");
-		return http.build();
-    }*/
-    //https://oauthdebugger.com/debug
     @Bean
     public OAuth2TokenCustomizer<JwtEncodingContext> tokenCustomizer(){
         return context ->{
