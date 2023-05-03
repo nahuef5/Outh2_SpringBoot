@@ -3,6 +3,8 @@ import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
+import com.oauth.authorizationServer.federated.FederatedIdentityConfigurer;
+import com.oauth.authorizationServer.federated.UserRepositoryOAuth2UserHandler;
 import com.oauth.authorizationServer.service.ClientService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,8 +39,15 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.security.core.session.SessionRegistryImpl;
+import org.springframework.security.oauth2.server.authorization.InMemoryOAuth2AuthorizationConsentService;
+import org.springframework.security.oauth2.server.authorization.InMemoryOAuth2AuthorizationService;
+import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationConsentService;
+import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
+import org.springframework.security.web.session.HttpSessionEventPublisher;
 
 @Configuration
 @Slf4j
@@ -46,43 +55,34 @@ import org.springframework.security.oauth2.server.authorization.token.OAuth2Toke
 public class AuthorizationConfig {
     @Autowired
     ClientService service;
-    private final PasswordEncoder passwordEncoder;
     
     @Bean
     @Order(1)
     public SecurityFilterChain authSecurityFilterChain(HttpSecurity http) throws Exception {
         OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
-        http.getConfigurer(OAuth2AuthorizationServerConfigurer.class)
-                .oidc(Customizer.withDefaults());
-        http.exceptionHandling(exception -> exception
-                .authenticationEntryPoint(new LoginUrlAuthenticationEntryPoint("/login")))
-                .oauth2ResourceServer(OAuth2ResourceServerConfigurer::jwt);
-        return http.build();
+		http.getConfigurer(OAuth2AuthorizationServerConfigurer.class)
+				.oidc(Customizer.withDefaults());
+		http.oauth2ResourceServer(OAuth2ResourceServerConfigurer::jwt);
+		http.apply(new FederatedIdentityConfigurer());
+		return http.build();
     }
     @Bean
     @Order(2)
     public SecurityFilterChain webSecurityFilterChain(HttpSecurity http) throws Exception {
-        http.authorizeHttpRequests(auth -> auth.requestMatchers("/auth/**", "/client/**")
-                .permitAll().anyRequest().authenticated())
-                .formLogin(Customizer.withDefaults());
-        http.csrf().ignoringRequestMatchers("/auth/**", "/client/**");
-        return http.build();
+        FederatedIdentityConfigurer federatedIdentityConfigurer = new FederatedIdentityConfigurer()
+			.oauth2UserHandler(new UserRepositoryOAuth2UserHandler());
+		http
+			.authorizeHttpRequests(authorizeRequests ->
+				authorizeRequests
+					.requestMatchers("/auth/**", "/client/**", "/login").permitAll()
+					.anyRequest().authenticated()
+			)
+			.formLogin(Customizer.withDefaults())
+			.apply(federatedIdentityConfigurer);
+                http.csrf().ignoringRequestMatchers("/auth/**", "/client/**");
+		return http.build();
     }
-    /*@Bean
-    public RegisteredClientRepository registeredClientRepository(){
-        RegisteredClient registeredClient = RegisteredClient.withId(UUID.randomUUID().toString())
-                .clientId("client")
-                .clientSecret(passwordEncoder.encode("secret"))
-                .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
-                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-                .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
-                .redirectUri("https://oauthdebugger.com/debug")
-                .scope(OidcScopes.OPENID)
-                .clientSettings(clientSettings())
-                .build();
-        return new InMemoryRegisteredClientRepository(registeredClient);
-    }*/
+    //https://oauthdebugger.com/debug
     @Bean
     public OAuth2TokenCustomizer<JwtEncodingContext> tokenCustomizer(){
         return context ->{
@@ -98,13 +98,24 @@ public class AuthorizationConfig {
             }
         };
     }
-    
-    
-   /* @Bean
-    public ClientSettings clientSettings(){
-        return ClientSettings.builder().requireProofKey(true).build();
-    }*/
+     @Bean
+    public SessionRegistry sessionRegistry() {
+        return new SessionRegistryImpl();
+    }
 
+    @Bean
+    public HttpSessionEventPublisher httpSessionEventPublisher() {
+        return new HttpSessionEventPublisher();
+    }
+    @Bean
+    public OAuth2AuthorizationService authorizationService(){
+        return new InMemoryOAuth2AuthorizationService();
+    }
+    
+    @Bean
+    public OAuth2AuthorizationConsentService authorizationConsentService(){
+        return new InMemoryOAuth2AuthorizationConsentService();
+    }
     @Bean
     public AuthorizationServerSettings authorizationServerSettings(){
         return AuthorizationServerSettings.builder().issuer("http://localhost:5050").build();
