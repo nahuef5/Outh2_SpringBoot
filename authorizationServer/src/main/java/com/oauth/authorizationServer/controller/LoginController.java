@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.*;
 
 @Controller
 public class LoginController {
-    @PostMapping("logout")
+    @PostMapping("/logout")
     public String logOutOk(HttpSecurity http) throws Exception{
         http.logout().logoutSuccessUrl("login?logout")
                 .deleteCookies("JSESSIONID").invalidateHttpSession(true)
